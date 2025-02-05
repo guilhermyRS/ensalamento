@@ -23,7 +23,7 @@ async function initializeDb() {
     )
   `);
   
-  // Criar tabela de salas com o campo status
+  // Criar tabela de salas com os novos campos
   await db.run(`
     CREATE TABLE IF NOT EXISTS rooms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,6 +31,11 @@ async function initializeDb() {
       days TEXT NOT NULL,
       shift TEXT NOT NULL,
       status TEXT DEFAULT 'closed' NOT NULL,
+      unidade TEXT,
+      curso TEXT,
+      periodo TEXT,
+      disciplina TEXT,
+      docente TEXT,
       FOREIGN KEY (room_name_id) REFERENCES room_names(id)
     )
   `);
@@ -44,7 +49,6 @@ initializeDb().catch(console.error);
 // GET /api/rooms
 export async function GET(request) {
   const { pathname } = new URL(request.url);
-  console.log('GET Request Path:', pathname);
   
   try {
     const db = await getDb();
@@ -53,11 +57,10 @@ export async function GET(request) {
     if (pathname.includes('room-names')) {
       const roomNames = await db.all('SELECT * FROM room_names ORDER BY name');
       await db.close();
-      console.log('Room Names Retrieved:', roomNames);
       return NextResponse.json(roomNames);
     }
     
-    // Rota para buscar salas (incluindo status)
+    // Rota para buscar salas (incluindo todos os campos)
     const rooms = await db.all(`
       SELECT 
         r.id,
@@ -65,16 +68,19 @@ export async function GET(request) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       ORDER BY rn.name, r.days, r.shift
     `);
     await db.close();
-    console.log('Rooms Retrieved:', rooms);
     return NextResponse.json(rooms);
   } catch (error) {
-    console.error('Error in GET:', error);
     return NextResponse.json(
       { error: 'Erro ao buscar dados: ' + error.message },
       { status: 500 }
@@ -85,12 +91,9 @@ export async function GET(request) {
 // POST /api/rooms
 export async function POST(request) {
   const { pathname } = new URL(request.url);
-  console.log('POST Request Path:', pathname);
   
   try {
     const data = await request.json();
-    console.log('POST Received Data:', data);
-
     const db = await getDb();
     
     // Rota para criar nome de sala
@@ -114,7 +117,6 @@ export async function POST(request) {
         };
         
         await db.close();
-        console.log('Created Room Name:', newRoomName);
         return NextResponse.json(newRoomName, { status: 201 });
       } catch (error) {
         if (error.message.includes('UNIQUE constraint failed')) {
@@ -144,10 +146,23 @@ export async function POST(request) {
       );
     }
     
-    // Rota para criar sala (incluindo status inicial)
+    // Rota para criar sala com todos os campos
     const result = await db.run(
-      'INSERT INTO rooms (room_name_id, days, shift, status) VALUES (?, ?, ?, ?)',
-      [parseInt(data.room_name_id), data.days, data.shift, 'closed']
+      `INSERT INTO rooms (
+        room_name_id, days, shift, status,
+        unidade, curso, periodo, disciplina, docente
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        parseInt(data.room_name_id),
+        data.days,
+        data.shift,
+        'closed',
+        data.unidade || null,
+        data.curso || null,
+        data.periodo || null,
+        data.disciplina || null,
+        data.docente || null
+      ]
     );
     
     const newRoom = await db.get(`
@@ -157,17 +172,20 @@ export async function POST(request) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       WHERE r.id = ?
     `, [result.lastID]);
     
     await db.close();
-    console.log('Created Room:', newRoom);
     return NextResponse.json(newRoom, { status: 201 });
   } catch (error) {
-    console.error('Error in POST:', error);
     return NextResponse.json(
       { error: 'Erro ao criar dados: ' + error.message },
       { status: 500 }
@@ -181,7 +199,6 @@ export async function PUT(request) {
     const { pathname } = new URL(request.url);
     const id = pathname.split('/').pop();
     const data = await request.json();
-    console.log('PUT Request for ID:', id, 'Data:', data);
     
     if (!data.room_name_id || !data.days || !data.shift) {
       return NextResponse.json(
@@ -192,7 +209,6 @@ export async function PUT(request) {
 
     const db = await getDb();
 
-    // Verificar se a sala existe
     const existingRoom = await db.get('SELECT id FROM rooms WHERE id = ?', [id]);
     if (!existingRoom) {
       await db.close();
@@ -202,10 +218,29 @@ export async function PUT(request) {
       );
     }
     
-    // Atualizar sala (mantendo o status atual)
+    // Atualizar sala com todos os campos
     await db.run(
-      'UPDATE rooms SET room_name_id = ?, days = ?, shift = ? WHERE id = ?',
-      [parseInt(data.room_name_id), data.days, data.shift, id]
+      `UPDATE rooms SET 
+        room_name_id = ?, 
+        days = ?, 
+        shift = ?,
+        unidade = ?,
+        curso = ?,
+        periodo = ?,
+        disciplina = ?,
+        docente = ?
+        WHERE id = ?`,
+      [
+        parseInt(data.room_name_id),
+        data.days,
+        data.shift,
+        data.unidade || null,
+        data.curso || null,
+        data.periodo || null,
+        data.disciplina || null,
+        data.docente || null,
+        id
+      ]
     );
     
     const updatedRoom = await db.get(`
@@ -215,17 +250,20 @@ export async function PUT(request) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       WHERE r.id = ?
     `, [id]);
     
     await db.close();
-    console.log('Updated Room:', updatedRoom);
     return NextResponse.json(updatedRoom);
   } catch (error) {
-    console.error('Error in PUT:', error);
     return NextResponse.json(
       { error: 'Erro ao atualizar sala: ' + error.message },
       { status: 500 }
@@ -233,7 +271,7 @@ export async function PUT(request) {
   }
 }
 
-// PATCH /api/rooms/[id]/status
+// PATCH e DELETE mantidos como estavam, apenas atualizando as queries SELECT para incluir os novos campos
 export async function PATCH(request) {
   try {
     const { pathname } = new URL(request.url);
@@ -261,7 +299,12 @@ export async function PATCH(request) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       WHERE r.id = ?
@@ -270,7 +313,6 @@ export async function PATCH(request) {
     await db.close();
     return NextResponse.json(updatedRoom);
   } catch (error) {
-    console.error('Error in PATCH:', error);
     return NextResponse.json(
       { error: 'Erro ao atualizar status: ' + error.message },
       { status: 500 }
@@ -278,16 +320,13 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE /api/rooms/[id]
 export async function DELETE(request) {
   try {
     const { pathname } = new URL(request.url);
     const id = pathname.split('/').pop();
-    console.log('DELETE Request for ID:', id);
     
     const db = await getDb();
 
-    // Verificar se a sala existe
     const existingRoom = await db.get('SELECT id FROM rooms WHERE id = ?', [id]);
     if (!existingRoom) {
       await db.close();
@@ -300,10 +339,8 @@ export async function DELETE(request) {
     await db.run('DELETE FROM rooms WHERE id = ?', [id]);
     await db.close();
     
-    console.log('Room Deleted:', id);
     return NextResponse.json({ message: 'Sala excluída com sucesso' });
   } catch (error) {
-    console.error('Error in DELETE:', error);
     return NextResponse.json(
       { error: 'Erro ao excluir sala: ' + error.message },
       { status: 500 }

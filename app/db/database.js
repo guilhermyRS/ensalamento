@@ -6,6 +6,7 @@ const dbPath = path.resolve('./rooms.db');
 const db = new sqlite3.Database(dbPath);
 
 // Criar tabelas
+// In your database initialization file
 db.serialize(() => {
   // Tabela de nomes de salas
   db.run(`
@@ -15,16 +16,24 @@ db.serialize(() => {
     )
   `);
 
-  // Tabela de salas com relacionamento
+  // Tabela de salas com os novos campos
   db.run(`
     CREATE TABLE IF NOT EXISTS rooms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       room_name_id INTEGER NOT NULL,
       days TEXT NOT NULL,
       shift TEXT NOT NULL,
+      status TEXT DEFAULT 'closed' NOT NULL,
+      unidade TEXT,
+      curso TEXT,
+      periodo TEXT,
+      disciplina TEXT,
+      docente TEXT,
       FOREIGN KEY (room_name_id) REFERENCES room_names(id)
     )
   `);
+    
+  
 });
 
 // Funções auxiliares para o banco de dados

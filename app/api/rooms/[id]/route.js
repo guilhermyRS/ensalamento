@@ -9,7 +9,7 @@ async function getDb() {
   });
 }
 
-// Função GET existente (se houver)
+// app/api/rooms/[id]/route.js
 export async function GET(request, { params }) {
   let db;
   try {
@@ -21,7 +21,12 @@ export async function GET(request, { params }) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       WHERE r.id = ?
@@ -43,21 +48,11 @@ export async function GET(request, { params }) {
   }
 }
 
-// Adicionando o método PUT para atualização
 export async function PUT(request, { params }) {
   let db;
   try {
-    await Promise.resolve(); // Para resolver o aviso de params assíncrono
     const roomId = params.id;
     const updateData = await request.json();
-
-    // Validações básicas
-    if (!updateData) {
-      return NextResponse.json(
-        { error: 'Dados não fornecidos' },
-        { status: 400 }
-      );
-    }
 
     db = await getDb();
 
@@ -70,36 +65,31 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Prepara a query de atualização dinamicamente
-    const validFields = ['room_name_id', 'days', 'shift', 'status'];
-    const updates = [];
-    const values = [];
-
-    for (const [key, value] of Object.entries(updateData)) {
-      if (validFields.includes(key)) {
-        updates.push(`${key} = ?`);
-        values.push(value);
-      }
-    }
-
-    if (updates.length === 0) {
-      return NextResponse.json(
-        { error: 'Nenhum campo válido para atualização' },
-        { status: 400 }
-      );
-    }
-
-    // Adiciona o ID ao final dos valores
-    values.push(roomId);
-
-    // Executa a atualização
+    // Atualizar sala com todos os campos
     await db.run(`
-      UPDATE rooms 
-      SET ${updates.join(', ')}
+      UPDATE rooms SET 
+        room_name_id = ?, 
+        days = ?, 
+        shift = ?,
+        unidade = ?,
+        curso = ?,
+        periodo = ?,
+        disciplina = ?,
+        docente = ?
       WHERE id = ?
-    `, values);
+    `, [
+      parseInt(updateData.room_name_id),
+      updateData.days,
+      updateData.shift,
+      updateData.unidade,
+      updateData.curso,
+      updateData.periodo,
+      updateData.disciplina,
+      updateData.docente,
+      roomId
+    ]);
 
-    // Busca a sala atualizada
+    // Buscar a sala atualizada com todos os campos
     const updatedRoom = await db.get(`
       SELECT 
         r.id,
@@ -107,14 +97,18 @@ export async function PUT(request, { params }) {
         r.days,
         r.shift,
         r.status,
-        r.room_name_id
+        r.room_name_id,
+        r.unidade,
+        r.curso,
+        r.periodo,
+        r.disciplina,
+        r.docente
       FROM rooms r
       JOIN room_names rn ON r.room_name_id = rn.id
       WHERE r.id = ?
     `, [roomId]);
 
     return NextResponse.json(updatedRoom);
-
   } catch (error) {
     console.error('Erro ao atualizar sala:', error);
     return NextResponse.json(
@@ -122,13 +116,7 @@ export async function PUT(request, { params }) {
       { status: 500 }
     );
   } finally {
-    if (db) {
-      try {
-        await db.close();
-      } catch (error) {
-        console.error('Erro ao fechar conexão:', error);
-      }
-    }
+    if (db) await db.close();
   }
 }
 

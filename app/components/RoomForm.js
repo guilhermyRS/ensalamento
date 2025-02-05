@@ -1,3 +1,4 @@
+// components/RoomForm.js
 'use client';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
@@ -6,9 +7,14 @@ import RoomNameModal from './RoomNameModal';
 
 export default function RoomForm({ room, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    room_name_id: '', // Mudado de roomNameId para room_name_id
+    room_name_id: '',
     days: '',
-    shift: 'matutino'
+    shift: 'matutino',
+    unidade: '',
+    curso: '',
+    periodo: '',
+    disciplina: '',
+    docente: ''
   });
   const [roomNames, setRoomNames] = useState([]);
   const [isRoomNameModalOpen, setIsRoomNameModalOpen] = useState(false);
@@ -20,9 +26,14 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
   useEffect(() => {
     if (room) {
       setFormData({
-        room_name_id: room.room_name_id, // Usando o nome correto do campo
-        days: room.days,
-        shift: room.shift
+        room_name_id: room.room_name_id || '',
+        days: room.days || '',
+        shift: room.shift || 'matutino',
+        unidade: room.unidade || '',
+        curso: room.curso || '',
+        periodo: room.periodo || '',
+        disciplina: room.disciplina || '',
+        docente: room.docente || ''
       });
     }
   }, [room]);
@@ -57,17 +68,29 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
     }
   
     try {
-      // Converter room_name_id para número antes de enviar
       const dataToSubmit = {
+        ...formData,
         room_name_id: parseInt(formData.room_name_id),
-        days: formData.days,
-        shift: formData.shift
+        // Garantir que todos os campos sejam incluídos
+        unidade: formData.unidade,
+        curso: formData.curso,
+        periodo: formData.periodo,
+        disciplina: formData.disciplina,
+        docente: formData.docente
       };
       
       await onSubmit(dataToSubmit);
     } catch (error) {
       toast.error('Erro ao salvar sala');
     }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const weekDays = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -86,8 +109,9 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
           </label>
           <div className="flex gap-2">
             <select
+              name="room_name_id"
               value={formData.room_name_id}
-              onChange={(e) => setFormData(prev => ({ ...prev, room_name_id: e.target.value }))}
+              onChange={handleInputChange}
               className="flex-1 p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Selecione uma sala</option>
@@ -108,6 +132,72 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
           </div>
         </div>
 
+        {/* Novos campos adicionados */}
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Unidade
+          </label>
+          <input
+            type="text"
+            name="unidade"
+            value={formData.unidade}
+            onChange={handleInputChange}
+            className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Curso
+          </label>
+          <input
+            type="text"
+            name="curso"
+            value={formData.curso}
+            onChange={handleInputChange}
+            className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Período
+          </label>
+          <input
+            type="text"
+            name="periodo"
+            value={formData.periodo}
+            onChange={handleInputChange}
+            className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Disciplina
+          </label>
+          <input
+            type="text"
+            name="disciplina"
+            value={formData.disciplina}
+            onChange={handleInputChange}
+            className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Docente
+          </label>
+          <input
+            type="text"
+            name="docente"
+            value={formData.docente}
+            onChange={handleInputChange}
+            className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
         <div>
           <label className="block text-gray-700 font-medium mb-1 text-sm">
             Dia da Semana
@@ -117,10 +207,10 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
               <label key={day} className="flex items-center space-x-2 text-sm text-gray-700 p-2 rounded-md hover:bg-gray-50">
                 <input
                   type="radio"
-                  name="weekday"
+                  name="days"
                   value={day}
                   checked={formData.days === day}
-                  onChange={(e) => setFormData(prev => ({ ...prev, days: e.target.value }))}
+                  onChange={handleInputChange}
                   className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                 />
                 <span>{day}</span>
@@ -134,8 +224,9 @@ export default function RoomForm({ room, onSubmit, onCancel }) {
             Turno
           </label>
           <select
+            name="shift"
             value={formData.shift}
-            onChange={(e) => setFormData(prev => ({ ...prev, shift: e.target.value }))}
+            onChange={handleInputChange}
             className="w-full p-2 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           >
             {shifts.map((shift) => (
